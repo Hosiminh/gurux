@@ -1,0 +1,35 @@
+from gurux_serial import GXSerial
+from gurux_dlms import GXDLMSClient, GXDLMSReader, Authentication
+
+# 1) DLMS Client'ı oluştur (Logical Name referencing)
+client = GXDLMSClient(True)
+
+# 2) Adreslemeleri ayarla
+client.clientAddress       = 1
+client.serverAddress       = GXDLMSClient.getServerAddress(1)  # Gerekirse logical+physical için iki argüman verilebilir
+client.serverAddressSize   = 2
+
+# 3) Authentication seviyesi
+client.authentication      = Authentication.NONE
+
+# 4) Seri hattı aç
+media = GXSerial(port="/dev/serial0")
+media.baudRate             = 9600
+media.parity               = 0    # 0=None
+media.stopBits             = 1
+media.dataBits             = 8
+media.open()
+
+# 5) Reader ile uygulama birliği sağla ve obje oku
+reader = GXDLMSReader(client, media, trace=0, invocationCounter=0)
+
+# SNRM/AARQ etc...
+reply = reader.readDLMSPacket(client.snrmRequest())
+client.parseUAResponse(reply.data)
+
+# Örnek: OBIS 1.8.0 (aktif enerji)
+data = reader.readDataBlock(client.getAttribute("1.8.0", 2))
+print("Aktif Enerji (kWh):", client.parseReadData(data))
+
+# 6) Temizlik
+media.close()
